@@ -231,6 +231,32 @@ def test_plural_form_property():
     assert Locale('ru').plural_form(100) == 'many'
 
 
+def test_plural_form_follows_truncation_fallback():
+    # Plural rules are supplemental data keyed by locale; they follow the
+    # truncation fallback chain (pt_AO -> pt -> root) rather than the locale
+    # data inheritance chain (pt_AO inherits other data from pt_PT).
+    assert Locale('pt', 'AO').plural_form.rules == Locale('pt').plural_form.rules
+    assert Locale('pt', 'AO').plural_form.rules != Locale('pt', 'PT').plural_form.rules
+    assert Locale('pt', 'AO').plural_form(0) == 'one'
+    assert Locale('pt', 'PT').plural_form(0) == 'other'
+    assert Locale('en', 'US').plural_form.rules == Locale('en').plural_form.rules
+
+
+def test_plural_form_default_when_no_rules_in_chain():
+    # Neither ht nor any locale in its truncation fallback chain defines
+    # plural rules, so everything maps to the "other" category instead of
+    # raising or leaking rules from the data-inheritance parent (fr_HT).
+    plural_form = Locale('ht').plural_form
+    assert plural_form.rules == {}
+    assert plural_form(0) == plural_form(1) == plural_form(2) == 'other'
+
+
+def test_ordinal_form_follows_truncation_fallback():
+    assert Locale('en', 'US').ordinal_form(2) == 'two'
+    assert Locale('en', 'US').ordinal_form.rules == Locale('en').ordinal_form.rules
+    assert Locale('ht').ordinal_form.rules == {}
+
+
 def test_locale_provides_access_to_cldr_locale_data():
     locale = Locale('en', 'US')
     assert locale.display_name == 'English (United States)'

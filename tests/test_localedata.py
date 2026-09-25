@@ -84,6 +84,26 @@ def test_load():
     assert localedata.load('en_US') is localedata.load('en_US')
 
 
+def test_load_merge_inherited_caches_are_separate(request):
+    # The merged and non-merged variants of a locale's data must be cached
+    # separately, regardless of the order they are loaded in.
+    localedata.clear_caches()
+    request.addfinalizer(localedata.clear_caches)
+
+    own = localedata.load('pt', merge_inherited=False)
+    merged = localedata.load('pt')
+    assert merged is not own
+    assert 'plural_form' in own  # pt defines its own plural rules
+    assert 'character_order' in merged  # inherited from root
+    assert 'character_order' not in own
+
+    localedata.clear_caches()
+    merged = localedata.load('pt')
+    own = localedata.load('pt', merge_inherited=False)
+    assert 'character_order' in merged
+    assert 'character_order' not in own
+
+
 def _calendar_snapshot(name):
     locale = Locale.parse(name)
     return {

@@ -210,6 +210,7 @@ class Locale:
         #: the modifier
         self.modifier = modifier
         self.__data: localedata.LocaleDataDict | None = None
+        self.__plural_rules: dict[str, PluralRule] = {}
 
         identifier = str(self)
         identifier_without_modifier = identifier.partition('@')[0]
@@ -1028,7 +1029,37 @@ class Locale:
         >>> Locale('ru').plural_form(100)
         'many'
         """
-        return self._data.get('plural_form', _default_plural_rule)
+        return self._get_plural_rule('plural_form')
+
+    def _get_plural_rule(self, key: str) -> PluralRule:
+        """Look up a plural rule (``plural_form`` or ``ordinal_form``).
+
+        Plural rules are CLDR *supplemental* data keyed by locale
+        identifier, so they follow the standard truncation fallback chain
+        (e.g. ``pt_AO`` -> ``pt`` -> root) instead of the locale data
+        inheritance chain, which may redirect through parent exceptions
+        (e.g. ``pt_AO`` inherits other data from ``pt_PT``, and ``ht``
+        from ``fr_HT``).
+
+        If no locale in the chain defines the rule, a default rule that
+        maps everything to ``other`` is returned.
+        """
+        try:
+            return self.__plural_rules[key]
+        except KeyError:
+            pass
+        parts = self.__data_identifier.split('_')
+        while parts:
+            candidate = '_'.join(parts)
+            if localedata.exists(candidate):
+                rule = localedata.load(candidate, merge_inherited=False).get(key)
+                if rule is not None:
+                    break
+            parts.pop()
+        else:
+            rule = _default_plural_rule
+        self.__plural_rules[key] = rule
+        return rule
 
     @property
     def list_patterns(self) -> localedata.LocaleDataDict:
@@ -1061,7 +1092,7 @@ class Locale:
         >>> Locale('ru').ordinal_form(100)
         'other'
         """
-        return self._data.get('ordinal_form', _default_plural_rule)
+        return self._get_plural_rule('ordinal_form')
 
     @property
     def measurement_systems(self) -> localedata.LocaleDataDict:

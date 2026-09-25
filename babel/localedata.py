@@ -25,6 +25,7 @@ from itertools import chain
 from typing import Any
 
 _cache: dict[str, Any] = {}
+_own_data_cache: dict[str, Any] = {}
 _dict_cache: dict[str, LocaleDataDict] = {}
 _cache_lock = threading.RLock()
 _dirname = os.path.join(os.path.dirname(__file__), 'locale-data')
@@ -140,14 +141,16 @@ def load(name: os.PathLike[str] | str, merge_inherited: bool = True) -> dict[str
 
     :param name: the locale identifier string (or "root")
     :param merge_inherited: whether the inherited data should be merged into
-                            the data of the requested locale
+                            the data of the requested locale.  The merged and
+                            non-merged variants are cached separately.
     :raise `IOError`: if no locale data file is found for the given locale
                       identifier, or one of the locales it inherits from
     """
     name = os.path.basename(name)
+    cache = _cache if merge_inherited else _own_data_cache
     _cache_lock.acquire()
     try:
-        data = _cache.get(name)
+        data = cache.get(name)
         if not data:
             # Load inherited data
             if name == 'root' or not merge_inherited:
@@ -169,7 +172,7 @@ def load(name: os.PathLike[str] | str, merge_inherited: bool = True) -> dict[str
                     merge(data, pickle.load(fileobj))
                 else:
                     data = pickle.load(fileobj)
-            _cache[name] = data
+            cache[name] = data
         return data
     finally:
         _cache_lock.release()
@@ -181,6 +184,7 @@ def clear_caches() -> None:
     """
     with _cache_lock:
         _cache.clear()
+        _own_data_cache.clear()
         _dict_cache.clear()
 
 
