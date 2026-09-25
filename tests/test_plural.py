@@ -61,6 +61,19 @@ def test_plural_rule_operands_t():
     assert rule(1.5) == 'one'
 
 
+def test_plural_rule_operands_leading_zero_fraction():
+    # Mirrors the Latvian rules, which inspect v and f.
+    rule = plural.PluralRule(
+        {
+            'zero': 'v is 2 and f mod 100 in 11..19',
+            'one': 'v is not 2 and f mod 10 is 1',
+        }
+    )
+    assert rule(decimal.Decimal('0.11')) == 'zero'
+    assert rule(decimal.Decimal('0.011')) == 'one'
+    assert rule(decimal.Decimal('0.05')) == 'other'
+
+
 def test_plural_other_is_ignored():
     rule = plural.PluralRule({'one': 'n is 1', 'other': '@integer 2'})
     assert rule(1) == 'one'
@@ -221,6 +234,11 @@ EXTRACT_OPERANDS_TESTS = (
     (decimal.Decimal('1.30'), '1.30', 1, 2, 1, 30, 3),
     (decimal.Decimal('1.03'), '1.03', 1, 2, 2, 3, 3),
     (decimal.Decimal('1.230'), '1.230', 1, 3, 2, 230, 23),
+    # Leading zeros in the fractional part are significant for v and w.
+    (decimal.Decimal('0.05'), '0.05', 0, 2, 2, 5, 5),
+    (decimal.Decimal('0.011'), '0.011', 0, 3, 3, 11, 11),
+    (decimal.Decimal('0.00'), '0.00', 0, 2, 0, 0, 0),
+    (decimal.Decimal('10.05'), '10.05', 10, 2, 2, 5, 5),
     (-1, 1, 1, 0, 0, 0, 0),
     (1.3, '1.3', 1, 1, 1, 3, 3),
 )

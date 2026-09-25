@@ -66,7 +66,14 @@ def extract_operands(
     if isinstance(n, decimal.Decimal):
         dec_tuple = n.as_tuple()
         exp = dec_tuple.exponent
-        fraction_digits = dec_tuple.digits[exp:] if exp < 0 else ()
+        if exp < 0:
+            # The coefficient digits do not carry leading zeros of the
+            # fractional part (e.g. Decimal("0.05") has digits (5,)),
+            # so pad them back to expose all -exp fraction digits.
+            digits = (0,) * max(-exp - len(dec_tuple.digits), 0) + dec_tuple.digits
+            fraction_digits = digits[exp:]
+        else:
+            fraction_digits = ()
         trailing = ''.join(str(d) for d in fraction_digits)
         no_trailing = trailing.rstrip('0')
         v = len(trailing)

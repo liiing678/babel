@@ -190,7 +190,10 @@ def get_currency_unit_pattern(
     """
     loc = Locale.parse(locale or LC_MONETARY)
     if count is not None:
-        plural_form = loc.plural_form(count)
+        try:
+            plural_form = loc.plural_form(count)
+        except (OverflowError, ValueError):
+            plural_form = 'other'
         try:
             return loc._data['currency_unit_patterns'][plural_form]
         except LookupError:
@@ -630,6 +633,12 @@ def format_compact_decimal(
     >>> format_compact_decimal(12345, format_type="short", locale='ar_EG', fraction_digits=2, numbering_system='default')
     '12٫34\\xa0ألف'
 
+    If the locale has no compact format data for the given format type,
+    the number is formatted with the locale's regular decimal format instead:
+
+    >>> format_compact_decimal(12345, format_type="unknown", locale='en_US')
+    '12,345'
+
     :param number: the number to format
     :param format_type: Compact format to use ("short" or "long")
     :param locale: the `Locale` object or locale identifier. Defaults to the system numeric locale.
@@ -639,8 +648,12 @@ def format_compact_decimal(
     :raise `UnsupportedNumberingSystemError`: If the numbering system is not supported by the locale.
     """
     locale = Locale.parse(locale or LC_NUMERIC)
-    compact_format = locale.compact_decimal_formats[format_type]
-    number, format = _get_compact_format(number, compact_format, locale, fraction_digits)
+    compact_format = locale.compact_decimal_formats.get(format_type)
+    if compact_format:
+        number, format = _get_compact_format(number, compact_format, locale, fraction_digits)
+    else:
+        # The locale has no compact format data for this format type.
+        format = None
     # Did not find a format, fall back.
     if format is None:
         format = locale.decimal_formats[None]

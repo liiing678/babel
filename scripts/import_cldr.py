@@ -426,11 +426,20 @@ def _process_local_datas(sup, srcdir, destdir, force=True, dump_json=False):
         data['locale_id'] = locale_id
         data['unsupported_number_systems'] = set()
 
-        if locale_id in plural_rules:
+        # The CLDR supplemental data keys rules by the full locale identity
+        # (e.g. "shi_Latn" may have rules distinct from "shi"), so prefer the
+        # file's own identifier and fall back to the script-less locale id.
+        if stem in plural_rules:
+            data['plural_form'] = plural_rules[stem]
+        elif locale_id in plural_rules:
             data['plural_form'] = plural_rules[locale_id]
-        if locale_id in ordinal_rules:
+        if stem in ordinal_rules:
+            data['ordinal_form'] = ordinal_rules[stem]
+        elif locale_id in ordinal_rules:
             data['ordinal_form'] = ordinal_rules[locale_id]
-        if locale_id in day_period_rules:
+        if stem in day_period_rules:
+            data["day_period_rules"] = day_period_rules[stem]
+        elif locale_id in day_period_rules:
             data["day_period_rules"] = day_period_rules[locale_id]
 
         is_global = ("_" not in locale_id)

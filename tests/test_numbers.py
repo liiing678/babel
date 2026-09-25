@@ -99,6 +99,14 @@ def test_get_currency_unit_pattern():
     assert get_currency_unit_pattern('USD', locale='ro') == '{0} de {1}'
 
 
+def test_get_currency_unit_pattern_nonfinite_count():
+    # Non-finite counts have no plural category; fall back to "other"
+    # instead of raising, like `get_currency_name` does.
+    assert get_currency_unit_pattern('USD', locale='en_US', count=float('nan')) == '{0} {1}'
+    assert get_currency_unit_pattern('USD', locale='en_US', count=float('inf')) == '{0} {1}'
+    assert get_currency_unit_pattern('USD', locale='ro', count=float('-inf')) == '{0} de {1}'
+
+
 def test_get_territory_currencies():
     assert numbers.get_territory_currencies('AT', date(1995, 1, 1)) == ['ATS']
     assert numbers.get_territory_currencies('AT', date(2011, 1, 1)) == ['EUR']
@@ -695,3 +703,9 @@ def test_issue_1076_fixes():
     assert numbers.format_compact_decimal(2345678, format_type="long", locale="ja") == "235万"
     # Swahili does not define an accounting currency format; root aliases it to the standard format.
     assert numbers.format_currency(-2, "USD", format_type="accounting", locale="sw") == "-US$\xa02.00"
+
+
+def test_format_compact_decimal_missing_data_falls_back():
+    # If the locale has no compact format data for the format type, the
+    # regular decimal format is used instead of raising a KeyError.
+    assert numbers.format_compact_decimal(12345, format_type="unknown", locale="en_US") == "12,345"
